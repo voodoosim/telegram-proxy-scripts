@@ -155,8 +155,8 @@ rm -rf /tmp/mtg* 2>/dev/null || true
 
 log "✅ MTG v2.1.7 설치 완료"
 
-# MTG 설정
-MTPROTO_SECRET=$(head -c 16 /dev/urandom | xxd -ps)
+# MTG 설정 - openssl 사용으로 변경
+MTPROTO_SECRET=$(openssl rand -hex 16)
 MTPROTO_PORT=2398
 
 # 6. Shadowsocks 설치 (경량 버전)
@@ -406,6 +406,7 @@ cat > /root/proxy_complete_config.txt << EOF
 - ✅ IPv6 비활성화
 - ✅ 스왑 파일 설정
 - ✅ MTG v2.1.7 안정적 버전 사용
+- ✅ xxd 의존성 문제 해결 (openssl 사용)
 
 ========================================
 EOF
