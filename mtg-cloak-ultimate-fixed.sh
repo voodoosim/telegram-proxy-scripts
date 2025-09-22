@@ -3,7 +3,7 @@
 #==========================================
 # 🚀 MTProto + Shadowsocks + Cloak 통합 프록시
 # 메모리 최적화 버전 (512MB VPS 전용)
-# 모든 문제점 해결 완료 - URL 수정 버전
+# 모든 문제점 해결 완료 - MTG v2.1.7 사용
 #==========================================
 
 set -e
@@ -116,26 +116,44 @@ if command -v dnf &> /dev/null; then
 elif command -v apt &> /dev/null; then
     # Ubuntu/Debian
     apt update -qq
-    apt install -y wget curl python3 --no-install-recommends
+    apt install -y wget curl python3 tar --no-install-recommends
 fi
 
-# 5. MTProto 프록시 설치 (MTG 사용)
-log "5단계: MTProto 프록시 설치 (MTG)"
+# 5. MTProto 프록시 설치 (MTG v2.1.7)
+log "5단계: MTProto 프록시 설치 (MTG v2.1.7)"
 
-# MTG 바이너리 다운로드 (더 안정적)
+# MTG 바이너리 다운로드 및 설치
 MTPROTO_DIR="/opt/mtproto"
 mkdir -p $MTPROTO_DIR
 
 if [ "$ARCH" = "x86_64" ]; then
-    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-amd64"
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.7/mtg-2.1.7-linux-amd64.tar.gz"
 elif [ "$ARCH" = "aarch64" ]; then
-    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-arm64"
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.7/mtg-2.1.7-linux-arm64.tar.gz"
 else
-    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-amd64"
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.7/mtg-2.1.7-linux-amd64.tar.gz"
 fi
 
-wget -O $MTPROTO_DIR/mtg "$MTG_URL" || error "MTG 다운로드 실패"
+log "MTG 다운로드 중... ($MTG_URL)"
+wget -O /tmp/mtg.tar.gz "$MTG_URL" || error "MTG 다운로드 실패"
+
+log "MTG 압축 해제 중..."
+cd /tmp
+tar -xzf mtg.tar.gz || error "MTG 압축 해제 실패"
+
+# 바이너리 찾기 및 이동
+MTG_BINARY=$(find /tmp -name "mtg" -type f -executable | head -1)
+if [ -z "$MTG_BINARY" ]; then
+    error "MTG 바이너리를 찾을 수 없습니다"
+fi
+
+mv "$MTG_BINARY" $MTPROTO_DIR/mtg
 chmod +x $MTPROTO_DIR/mtg
+
+# 임시 파일 정리
+rm -rf /tmp/mtg* 2>/dev/null || true
+
+log "✅ MTG v2.1.7 설치 완료"
 
 # MTG 설정
 MTPROTO_SECRET=$(head -c 16 /dev/urandom | xxd -ps)
@@ -387,7 +405,7 @@ cat > /root/proxy_complete_config.txt << EOF
 - ✅ 메모리 최적화
 - ✅ IPv6 비활성화
 - ✅ 스왑 파일 설정
-- ✅ MTG 안정적 버전 사용
+- ✅ MTG v2.1.7 안정적 버전 사용
 
 ========================================
 EOF
