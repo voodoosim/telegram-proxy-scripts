@@ -3,7 +3,7 @@
 #==========================================
 # 🚀 MTProto + Shadowsocks + Cloak 통합 프록시
 # 메모리 최적화 버전 (512MB VPS 전용)
-# 모든 문제점 해결 완료
+# 모든 문제점 해결 완료 - URL 수정 버전
 #==========================================
 
 set -e
@@ -119,33 +119,27 @@ elif command -v apt &> /dev/null; then
     apt install -y wget curl python3 --no-install-recommends
 fi
 
-# 5. MTProto 프록시 설치 (최소 메모리)
-log "5단계: MTProto 프록시 설치"
+# 5. MTProto 프록시 설치 (MTG 사용)
+log "5단계: MTProto 프록시 설치 (MTG)"
 
-# MTProto 바이너리 다운로드
+# MTG 바이너리 다운로드 (더 안정적)
 MTPROTO_DIR="/opt/mtproto"
 mkdir -p $MTPROTO_DIR
 
 if [ "$ARCH" = "x86_64" ]; then
-    MTPROTO_URL="https://github.com/TelegramMessenger/MTProxy/releases/download/v1.1.0/mtproto-proxy"
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-amd64"
+elif [ "$ARCH" = "aarch64" ]; then
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-arm64"
 else
-    # ARM 또는 다른 아키텍처용 컴파일된 버전
-    MTPROTO_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-amd64"
+    MTG_URL="https://github.com/9seconds/mtg/releases/download/v2.1.6/mtg-linux-amd64"
 fi
 
-wget -O $MTPROTO_DIR/mtproto-proxy "$MTPROTO_URL" || error "MTProto 다운로드 실패"
-chmod +x $MTPROTO_DIR/mtproto-proxy
+wget -O $MTPROTO_DIR/mtg "$MTG_URL" || error "MTG 다운로드 실패"
+chmod +x $MTPROTO_DIR/mtg
 
-# MTProto 설정
+# MTG 설정
 MTPROTO_SECRET=$(head -c 16 /dev/urandom | xxd -ps)
 MTPROTO_PORT=2398
-
-cat > $MTPROTO_DIR/config << EOF
-PORT=$MTPROTO_PORT
-SECRET=$MTPROTO_SECRET
-WORKERS=1
-MAX_CONNECTIONS=1000
-EOF
 
 # 6. Shadowsocks 설치 (경량 버전)
 log "6단계: Shadowsocks 설치"
@@ -223,17 +217,17 @@ with open('$CLOAK_DIR/config.json', 'w') as f:
 # 8. 시스템 서비스 생성 (메모리 제한 적용)
 log "8단계: 메모리 제한 서비스 생성"
 
-# MTProto 서비스 (메모리 제한: 64MB)
+# MTG 서비스 (메모리 제한: 64MB)
 cat > /etc/systemd/system/mtproto.service << EOF
 [Unit]
-Description=MTProto Proxy (Memory Optimized)
+Description=MTG Proxy (Memory Optimized)
 After=network.target
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=$MTPROTO_DIR
-ExecStart=$MTPROTO_DIR/mtproto-proxy -p $MTPROTO_PORT -s $MTPROTO_SECRET
+ExecStart=$MTPROTO_DIR/mtg simple-run 0.0.0.0:$MTPROTO_PORT $MTPROTO_SECRET
 Restart=always
 RestartSec=10
 MemoryMax=64M
@@ -361,6 +355,7 @@ cat > /root/proxy_complete_config.txt << EOF
 - 포트: $MTPROTO_PORT
 - 비밀키: $MTPROTO_SECRET
 - 프로토콜: MTProto
+- URL: tg://proxy?server=$SERVER_IP&port=$MTPROTO_PORT&secret=$MTPROTO_SECRET
 
 🎭 Cloak 설정:
 - 서버: $SERVER_IP
@@ -392,6 +387,7 @@ cat > /root/proxy_complete_config.txt << EOF
 - ✅ 메모리 최적화
 - ✅ IPv6 비활성화
 - ✅ 스왑 파일 설정
+- ✅ MTG 안정적 버전 사용
 
 ========================================
 EOF
@@ -406,6 +402,9 @@ if [ "$SS_STATUS" = "active" ] && [ "$CLOAK_STATUS" = "active" ] && [ "$MTPROTO_
     echo "  systemctl status shadowsocks cloak mtproto"
     echo "  journalctl -u cloak -f"
     echo "  free -h"
+    echo ""
+    echo "📱 텔레그램 프록시 URL:"
+    echo "  tg://proxy?server=$SERVER_IP&port=$MTPROTO_PORT&secret=$MTPROTO_SECRET"
     echo ""
     log "✅ 512MB VPS 메모리 최적화 프록시 설치 완료!"
 else
